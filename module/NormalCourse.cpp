@@ -1,7 +1,7 @@
 /**
  *  @file   NormalCourse.h
  *  @brief  NormalCourseを走る
- *  @author Tatsumi0000
+ *  @author Tatsumi0000, Takahiro55555
  */
 #include "NormalCourse.h"
 
@@ -32,60 +32,35 @@ void NormalCourse::runNormalCourse()
 {
   printf("runNormalCourse\n");
   // 配列の個数
-  constexpr int arraySize = 15;
   constexpr int baseSpeed = 100;
-  constexpr std::array<NormalCourseProperty, arraySize> normalCoursePropertyL
-      /**
-       * 詳しく見たいならLineTracer.hを見てね．
-       * 進む距離，目標スピード，曲率，ターンpid
-       * 曲率は、直進のとき0.0を指定する
-       */
-      = { {
-          { 820, baseSpeed, 0.0, { 0.1, 0.005, 0.01 } },            // 第1区間
-          { 1195, baseSpeed, 0.003226, { 0.375, 0.005, 0.0125 } },  // 第2区間
-          { 320, baseSpeed, 0.0, { 0.1, 0.005, 0.01 } },            // 第3区間
-          { 1310, baseSpeed, -0.002941, { 0.373, 0.005, 0.009 } },  // 第4区間
-          { 620, baseSpeed, 0.0, { 0.1, 0.005, 0.01 } },            // 第5区間
-          { 500, baseSpeed, -0.004167, { 0.45, 0.005, 0.011 } },    // 第6区間
-          { 590, baseSpeed, 0.0, { 0.1, 0.005, 0.01 } },            // 第7区間
-          { 710, baseSpeed, 0.002439, { 0.356, 0.002, 0.008 } },    // 第8区間
-          { 163, baseSpeed, 0.0, { 0.1, 0.005, 0.01 } },            // 第9区間
-          { 740, baseSpeed, 0.002439, { 0.356, 0.002, 0.008 } },    // 第10区間
-          { 520, baseSpeed, 0.0, { 0.1, 0.005, 0.01 } },            // 第11区間
-          { 680, baseSpeed, 0.002778, { 0.358, 0.002, 0.008 } },    // 第12区間
-          { 1613, baseSpeed, 0.0, { 0.1, 0.005, 0.03 } },           // 第13区間
-          { 530, baseSpeed, -0.004167, { 0.45, 0.005, 0.025 } },    // 第14区間
-          { 1800, baseSpeed, 0.0, { 0.1, 0.005, 0.01 } },           //進入ライン
-      } };
-  constexpr std::array<NormalCourseProperty, arraySize> normalCoursePropertyR
-      /**
-       * 詳しく見たいならLineTracer.hを見てね．
-       * 進む距離，目標スピード，曲率，ターンpid
-       * 曲率は、直進のとき0.0を指定する
-       */
-      = { {
-          { 820, baseSpeed + 10, 0.0, { 0.10, 0.005, 0.01 } },  // 第1区間
-          { 1160, baseSpeed, -0.00322, { 0.4, 0.0, 0.02 } },    // 第2区間
-          { 330, baseSpeed, 0.0, { 0.10, 0.0, 0.01 } },         // 第3区間
-          { 1320, baseSpeed, 0.00294, { 0.5, 0.005, 0.01 } },   // 第4区間
-          { 650, baseSpeed, 0.0, { 0.12, 0.005, 0.01 } },       // 第5区間
-          { 500, baseSpeed, 0.00416, { 0.65, 0.005, 0.02 } },   // 第6区間
-          { 550, baseSpeed, 0.0, { 0.1, 0.005, 0.01 } },        // 第7区間
-          { 1650, baseSpeed, -0.00243, { 0.4, 0.005, 0.02 } },  // 第8区間
-          { 480, baseSpeed, 0.0, { 0.1, 0.005, 0.01 } },        // 第9区間
-          { 650, baseSpeed, -0.00277, { 0.35, 0.005, 0.02 } },  // 第10区間
-          { 1640, baseSpeed, 0.0, { 0.2, 0.005, 0.01 } },       // 第11区間
-          { 470, baseSpeed, 0.00416, { 0.68, 0.005, 0.03 } },   // 第12区間
-          { 1700, baseSpeed, 0.0, { 0.2, 0.005, 0.01 } },       // 第13区間
-          { 2085, 1 + 10, 0.0, { 0.4, 0.005, 0.03 } },          // 進入ライン
-          { 580, 1, -0.00331, { 0.55, 0.0, 0.04 } },            // 本番で要調整
-      } };
 
   // LコースならLコースのPID値を採用する。RコースならRコースのPID値を採用する。
-  const std::array<NormalCourseProperty, arraySize> normalCourseProperty
-      = isLeftCourse ? normalCoursePropertyL : normalCoursePropertyR;
+  std::string filename;
+  if(isLeftCourse) {
+    filename = L_PID_FILE_NAME;
+  } else {
+    filename = R_PID_FILE_NAME;
+  }
+  std::ifstream ifs(filename);
+
+  std::string line;
+  getline(ifs, line);
+  if(initCsvParameters(line) != 0) {
+    printf("[Error] CSVファイルのヘッダが正しくありません\n");
+    return;
+  }
+
+  int counter = 2;
+  while(getline(ifs, line)) {
+    if(csvLineToNormalCourseProperty(line, baseSpeed) != 0) {
+      printf("[Error] CSVファイルのパラメータ部分が正しくありません(%d 行目)\n", counter);
+      return;
+    }
+    counter++;
+  }
+
   LineTracer lineTracer(controller, targetBrightness, isLeftCourse);
-  for(const auto& ncp : normalCourseProperty) {
+  for(const auto& ncp : normalCoursePropertys) {
     lineTracer.run(ncp);
     // １区間終わるごとに音を奏でる．
     controller.speakerPlayToneFS6(100);
@@ -106,4 +81,144 @@ bool NormalCourse::getIsLeftCourse() const
 int NormalCourse::getTargetBrightness() const
 {
   return targetBrightness;
+}
+
+std::vector<std::string> NormalCourse::split(std::string& input, char delimiter)
+{
+  // コピペ元: CVTECH.cc「C++でCSVファイルを読み込む」
+  // URL: https://cvtech.cc/readcsv/
+
+  std::istringstream stream(input);
+  std::string field;
+  std::vector<std::string> result;
+  bool endIsEmpty = false;
+  endIsEmpty = input[input.size()-1] == delimiter;
+
+  while(getline(stream, field, delimiter)) {
+    // 文字列の前後にある半角スペースを削除する
+    result.push_back(std::regex_replace(field, std::regex("(^ +)|( +$)"), ""));
+  }
+
+  // 末尾がデリミタ文字で終わっている場合は空文字列を挿入する
+  if(endIsEmpty)
+  {
+    result.push_back("");
+  }
+
+  return result;
+}
+
+int NormalCourse::initCsvParameters(std::string& headerLine)
+{
+  // CSV_DELIMITERにを参考に文字列を分割
+  std::vector<std::string> header = split(headerLine, CSV_DELIMITER);
+
+  // リセット
+  targetDistanceCol = -1;
+  targetSpeedCol = -1;
+  curvatureCol = -1;
+  turnPidPCol = -1;
+  turnPidICol = -1;
+  turnPidDCol = -1;
+  headerColNum = header.size();  // ヘッダーの列数を取得しメンバ変数に格納
+
+  for(int i = 0; i < headerColNum; i++) {
+    if(PID_FILE_HEADER_TARGET_DISTANCE.compare(header[i]) == 0) {
+      targetDistanceCol = i;
+    } else if(PID_FILE_HEADER_TARGET_SPEED.compare(header[i]) == 0) {
+      targetSpeedCol = i;
+    } else if(PID_FILE_HEADER_CURVATURE.compare(header[i]) == 0) {
+      curvatureCol = i;
+    } else if(PID_FILE_HEADER_TURN_PID_P.compare(header[i]) == 0) {
+      turnPidPCol = i;
+    } else if(PID_FILE_HEADER_TURN_PID_I.compare(header[i]) == 0) {
+      turnPidICol = i;
+    } else if(PID_FILE_HEADER_TURN_PID_D.compare(header[i]) == 0) {
+      turnPidDCol = i;
+    }
+  }
+
+  // 全てのパラメータの列番号が分かっていない場合はエラー
+  if(targetDistanceCol < 0 || targetSpeedCol < 0 || curvatureCol < 0 || turnPidPCol < 0
+     || turnPidICol < 0 || turnPidDCol < 0) {
+    return 1;
+  }
+
+  // normalCoursePropertys を空にする
+  normalCoursePropertys.clear();
+
+  return 0;
+}
+
+// HACK: 本来数値が入るべき箇所に数値以外の文字列が入っていても知らぬ顔で動作してしまう
+int NormalCourse::csvLineToNormalCourseProperty(std::string& parameterLine, int baseSpeed)
+{
+  // NormalCourseProperty 関係
+  int targetDistance = -1;
+  int targetSpeed = -1;
+  double curvature = -1;
+  double Kp = -1;
+  double Ki = -1;
+  double Kd = -1;
+
+  // CSV_DELIMITERにを参考に文字列を分割
+  std::vector<std::string> parameter = split(parameterLine, CSV_DELIMITER);
+
+  // ヘッダー行の列数と現在の行の列数が異なる場合エラー
+  if(headerColNum != int(parameter.size())) {
+    return 1;
+  }
+
+  // 各列番号の確認
+  if(targetDistanceCol < 0) {
+    return 1;
+  }
+  if(targetSpeedCol < 0) {
+    return 1;
+  }
+  if(curvatureCol < 0) {
+    return 1;
+  }
+  if(turnPidPCol < 0) {
+    return 1;
+  }
+  if(turnPidICol < 0) {
+    return 1;
+  }
+  if(turnPidDCol < 0) {
+    return 1;
+  }
+
+  // 各値の確認
+  if(parameter[targetDistanceCol].length() < 1) {
+    return 1;
+  }
+  if(parameter[targetSpeedCol].length() < 1) {
+    return 1;
+  }
+  if(parameter[curvatureCol].length() < 1) {
+    return 1;
+  }
+  if(parameter[turnPidPCol].length() < 1) {
+    return 1;
+  }
+  if(parameter[turnPidICol].length() < 1) {
+    return 1;
+  }
+  if(parameter[turnPidDCol].length() < 1) {
+    return 1;
+  }
+
+  // 型変換と変数への代入
+  std::istringstream(parameter[targetDistanceCol]) >> targetDistance;
+  std::istringstream(parameter[targetSpeedCol]) >> targetSpeed;
+  std::istringstream(parameter[curvatureCol]) >> curvature;
+  std::istringstream(parameter[turnPidPCol]) >> Kp;
+  std::istringstream(parameter[turnPidICol]) >> Ki;
+  std::istringstream(parameter[turnPidDCol]) >> Kd;
+
+  NormalCourseProperty normalCourseProperty
+      = NormalCourseProperty{ targetDistance, targetSpeed, curvature, { Kp, Ki, Kd } };
+  normalCoursePropertys.push_back(normalCourseProperty);
+  return 0;
 }
