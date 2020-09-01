@@ -63,7 +63,7 @@ void NormalCourse::runNormalCourse()
   for(const auto& ncp : normalCoursePropertys) {
     lineTracer.run(ncp);
     // １区間終わるごとに音を奏でる．
-    controller.speakerPlayToneFS6(100);
+    // controller.speakerPlayToneFS6(100);
   }
 }
 
@@ -96,7 +96,16 @@ std::vector<std::string> NormalCourse::split(std::string& input, char delimiter)
 
   while(getline(stream, field, delimiter)) {
     // 文字列の前後にある半角スペースを削除する
-    result.push_back(std::regex_replace(field, std::regex("(^ +)|( +$)"), ""));
+    while(field.size() > 0 && !(field[0] != ' ' && field[field.size() - 1] != ' ')){
+      if(field[0] == ' '){
+        field = field.substr(1);
+      }
+      if(field[field.size()-1] == ' ')
+      {
+        field = field.erase(field.size()-1);
+      }
+    }
+    result.push_back(field);
   }
 
   // 末尾がデリミタ文字で終わっている場合は空文字列を挿入する
